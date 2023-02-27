@@ -1,0 +1,26 @@
+---
+
+- name: Add mongodb GPG key
+  rpm_key:
+    key: https://www.mongodb.org/static/pgp/server-4.4.asc
+    state: present
+  environment:
+    - https_proxy: "{{ mongodb_https_proxy }}"
+    - http_proxy: "{{ mongodb_http_proxy }}"
+  when:
+    - not mongodb_disable_install
+
+- name: Add mongodb repository
+  template:
+    src: mongodb.repo.j2
+    dest: /etc/yum.repos.d/mongodb-org.repo
+    mode: 0644
+  when:
+    - not mongodb_disable_install
+
+- name: Install mongodb (disabling package install={{ mongodb_disable_install }})
+  action: >
+    {{ ansible_pkg_mgr }} name='{{ mongodb_package }}' state=present enablerepo={{ mongodb_enablerepo | default(omit,true) }}
+  when:
+    - not ansible_check_mode
+    - not mongodb_disable_install

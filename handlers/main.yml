@@ -1,0 +1,10 @@
+---
+- name: restart mongodb through systemd
+  become: yes
+  service:
+    name: mongod
+    state: restarted
+  listen: "restart mongod"
+  when:
+    - not mongodb_disable_install or mongodb_instaled
+    - not ansible_check_mode

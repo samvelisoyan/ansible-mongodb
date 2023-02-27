@@ -1,0 +1,24 @@
+---
+- name: Checking vars tasks
+  import_tasks: check-vars.yml
+
+- name: Include setup tasks (requires user with root rights in order to run)
+  include: setup.yml
+  when:
+    - not mongodb_disable_install
+    - not ansible_check_mode
+
+- include: config.yml
+  when:
+    - mongodb_create_config | bool
+    - not mongodb_disable_install or mongodb_instaled
+
+- name: Ensure mongodb is started and enabled at boot.
+  service:
+    name: mongod
+    state: started
+    enabled: "{{ mongodb_enabled_on_boot }}"
+  when:
+    - ansible_user_id == "root"
+    - not mongodb_disable_install or mongodb_instaled
+    - not ansible_check_mode

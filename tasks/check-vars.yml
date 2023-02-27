@@ -1,0 +1,69 @@
+---
+- name: Get proxies settings from environment variables
+  set_fact:
+    mongodb_https_proxy: "{{ lookup('env', 'https_proxy') | default(mongodb_https_proxy, True) }}"
+    mongodb_http_proxy:  "{{ lookup('env', 'http_proxy')  | default(mongodb_http_proxy, True) }}"
+
+- name: Disabling proxies from mongodb data
+  set_fact:
+    mongodb_https_proxy: ""
+    mongodb_http_proxy:  ""
+  when: mongodb_disable_http_proxies
+
+- name: Gather package facts
+  package_facts:
+    manager: auto
+
+- name: Ensure that mongodb pakage not instaled
+  set_fact:
+    mongodb_instaled: false
+  when: mongodb_package not in ansible_facts.packages
+
+- name: Ensure that mongodb pakage instaled
+  set_fact:
+    mongodb_instaled: true
+  when: mongodb_package in ansible_facts.packages
+
+- name: Set systemd user service script
+  set_fact:
+    sysd_script: "{{ sysd_user_services_folder }}/mongod.service"
+
+- name: Check vars | mongodb systemlog configs
+  assert:
+    that:
+      - mongodb_systemlog_logappend == 'true'
+      - mongodb_systemlog_logrotate == 'reopen'
+    fail_msg: "If you specify logRotate reopen, you must also set logAppend to true"
+    success_msg: "logappend and logrotate configured correctly"
+  when: mongodb_systemlog_logrotate == 'reopen'
+
+- name: Check vars | ssl Key file
+  set_fact:
+    mongodb_net_ssl_keyfile_location: "{{ mongodb_net_ssl_location }}/{{ mongodb_net_ssl_keyfile | basename }}"
+  when:
+    - mongodb_net_ssl
+    - mongodb_net_ssl_keyfile is defined
+
+- name: Check vars | ssl CA file
+  set_fact:
+    mongodb_net_ssl_cafile_location: "{{ mongodb_net_ssl_location }}/{{ mongodb_net_ssl_cafile | basename }}"
+  when:
+    - mongodb_net_ssl
+    - mongodb_net_ssl_cafile is defined
+
+- name: Check vars | ssl cluster file
+  set_fact:
+    mongodb_net_ssl_clusterfile_location: "{{ mongodb_net_ssl_location }}/{{ mongodb_net_ssl_clusterfile | basename }}"
+  when:
+    - mongodb_net_ssl
+    - mongodb_net_ssl_clusterfile is defined
+
+- name: Check vars | ssl security key file
+  set_fact:
+    mongodb_security_keyfile_location: "{{ mongodb_net_ssl_location }}/{{ mongodb_security_keyfile | basename }}"
+  when:
+    - mongodb_net_ssl
+    - mongodb_security_keyfile is defined
+    - mongodb_replication_replset
+    - mongodb_security_authorization == 'enabled'
+    - mongodb_net_ssl_clusterfile is not defined

@@ -1,0 +1,91 @@
+# {{ ansible_managed }}
+# mongod.conf
+
+# for documentation of all options, see:
+#   http://docs.mongodb.org/manual/reference/configurationoptions/
+
+systemLog:
+{% if mongodb_systemlog_verbosity is defined %}
+  verbosity: {{ mongodb_systemlog_verbosity }}
+{% endif %}
+{% if mongodb_systemlog_traceAllExceptions is defined %}
+  traceAllExceptions: {{ mongodb_systemlog_traceAllExceptions | to_nice_json }}
+{% endif %}
+  destination: {{ mongodb_systemlog_destination }}
+{% if mongodb_systemlog_destination == 'file' %}
+  path: {{ mongodb_systemlog_path }}
+  logAppend: {{ mongodb_systemlog_logappend | to_nice_json | default('false') }}
+  logRotate: {{ mongodb_systemlog_logrotate }}
+{% elif mongodb_systemlog_destination == 'syslog' %}
+{% if mongodb_systemlog_syslogFacility is defined %}
+  syslogFacility: {{ mongodb_systemlog_syslogFacility }}
+{% endif %}
+{% endif %}
+  timeStampFormat: {{ mongodb_systemlog_timeStampFormat }}
+
+storage:
+  dbPath: {{ mongodb_storage_dbpath }}
+  directoryPerDB: {{ mongodb_storage_dirperdb | to_nice_json }}
+  engine: {{ mongodb_storage_engine }}
+  journal:
+    enabled: {{ mongodb_storage_journal_enabled | to_nice_json }}
+{% if mongodb_storage_engine == 'inMemory' and mongodb_storage_inMemorySizeGB is defined and mongodb_storage_inMemorySizeGB != "" %}
+  inMemory:
+    engineConfig:
+      inMemorySizeGB: {{ mongodb_storage_inMemorySizeGB }}
+{% endif %}
+{% if mongodb_storage_engine == 'wiredTiger' %}
+  wiredTiger:
+    engineConfig:
+{% if mongodb_wiredtiger_cache_sizegb is defined and mongodb_wiredtiger_cache_sizegb != "" %}
+      cacheSizeGB: {{ mongodb_wiredtiger_cache_sizegb }}
+{% endif %}
+      directoryForIndexes: {{ mongodb_wiredtiger_directory_for_indexes | to_nice_json }}
+{% endif %}
+
+processManagement:
+  fork: true  # fork and run in background
+  pidFilePath: /var/run/mongodb/mongod.pid  # location of pidfile
+  timeZoneInfo: /usr/share/zoneinfo
+
+net:
+  port: {{ mongodb_net_port }}
+  bindIp: {{ mongodb_net_bindip }}
+  ipv6: {{ mongodb_net_ipv6 | to_nice_json }}
+  maxIncomingConnections: {{ mongodb_net_maxconns }}
+{% if mongodb_net_ssl_keyfile is defined and mongodb_net_ssl_mode is defined and mongodb_net_ssl %}
+  tls:
+    mode: {{ mongodb_net_ssl_mode }}
+    certificateKeyFile: {{ mongodb_net_ssl_keyfile_location }}
+    CAFile: {{ mongodb_net_ssl_cafile_location }}
+{% if mongodb_net_ssl_clusterfile is defined %}
+    clusterFile: {{ mongodb_net_ssl_clusterfile_location }}
+{% endif %}
+{% endif %}
+
+security:
+  authorization: {{ mongodb_security_authorization }}
+{% if mongodb_enable_replication and mongodb_security_authorization == 'enabled' and mongodb_net_ssl_clusterfile is undefined %}
+  keyFile: {{ mongodb_security_keyfile_location }}
+{% endif %}
+{% if mongodb_net_ssl_clusterfile is defined and mongodb_net_ssl_clusterfile != "" %}
+  clusterAuthMode: x509
+{% endif %}
+  javascriptEnabled: {{ mongodb_security_javascript_enabled | to_nice_json }}
+
+operationProfiling:
+  slowOpThresholdMs: {{ mongodb_operation_profiling_slow_op_threshold_ms }}
+  mode: {{ mongodb_operation_profiling_mode }}
+
+{% if mongodb_enable_replication %}
+replication:
+  oplogSizeMB: {{ mongodb_replication_oplogsize | int }}
+  replSetName: {{ mongodb_replication_replSetName }}
+{% endif %}
+
+{% if mongodb_set_parameters %}
+setParameter:
+  {% for key, value in mongodb_set_parameters.items() %}
+  {{ key }}: {{ value }}
+  {% endfor %}
+{% endif %}
